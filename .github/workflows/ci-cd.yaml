@@ -16,7 +16,7 @@ jobs:
 
       # Step 2: Build Docker image
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/simple-python-cicd:${{ github.run_number }} .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/CI-CD-GithubActions:${{ github.run_number }} .
 
       # Step 3: Log in to Docker Hub
       - name: Log in to Docker Hub
@@ -24,4 +24,4 @@ jobs:
 
       # Step 4: Push image to Docker Hub
       - name: Push Docker image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/simple-python-cicd:${{ github.run_number }}
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/CI-CD-GithubActions:${{ github.run_number }}
