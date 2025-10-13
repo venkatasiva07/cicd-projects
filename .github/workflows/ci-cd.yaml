@@ -1,11 +1,12 @@
-name: Simple Python CI/CD with EC2 Deployment
+name: Simple Python CI/CD with EC2 Deployment (Project 1)
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'project-1/'
+      - 'project-1/**'   # ✅ Trigger only when files inside project-1 change
+
 jobs:
   build-push-deploy:
     runs-on: ubuntu-latest
@@ -15,9 +16,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Build Docker image
+      # Step 2: Build Docker image (from project-1 folder)
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/simple-python-cicd:${{ github.run_number }} .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/project-1:${{ github.run_number }} ./project-1
 
       # Step 3: Log in to Docker Hub
       - name: Log in to Docker Hub
@@ -25,7 +26,7 @@ jobs:
 
       # Step 4: Push image to Docker Hub
       - name: Push Docker image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/simple-python-cicd:${{ github.run_number }}
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/project-1:${{ github.run_number }}
 
       # Step 5: Deploy to EC2 via SSH
       - name: Deploy to EC2
@@ -36,11 +37,11 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "Pulling latest Docker image..."
-            docker pull ${{ secrets.DOCKER_USERNAME }}/simple-python-cicd:${{ github.run_number }}
+            docker pull ${{ secrets.DOCKER_USERNAME }}/project-1:${{ github.run_number }}
 
             echo "Stopping old container if exists..."
-            docker stop simple-python-cicd || true
-            docker rm simple-python-cicd || true
+            docker stop project-1 || true
+            docker rm project-1 || true
 
             echo "Running new container..."
-            docker run -d --name simple-python-cicd ${{ secrets.DOCKER_USERNAME }}/simple-python-cicd:${{ github.run_number }}
+            docker run -d --name project-1 ${{ secrets.DOCKER_USERNAME }}/project-1:${{ github.run_number }}
