@@ -7,6 +7,11 @@ on:
     paths:
       - 'multi-env-deploy/**'
 
+permissions:
+  contents: read
+  issues: write     # ✅ allows manual-approval action to create issue
+  pull-requests: write
+
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
