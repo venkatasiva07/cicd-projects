@@ -1,0 +1,125 @@
+name: React Multi-Env CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'react-multi-env/**'
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Code
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Setup Node
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # Step 3: Install Dependencies
+      - name: Install Dependencies
+        working-directory: react-project
+        run: npm ci
+
+      # Step 4: Run Tests
+      - name: Run Tests
+        working-directory: react-project
+        run: npm test -- --watchAll=false
+
+      # Step 5: Build React App
+      - name: Build React App
+        working-directory: react-project
+        run: npm run build
+
+      # Step 6: Build Docker Image
+      - name: Build Docker Image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }} ./react-project
+
+      # Step 7: Push Docker Image to Docker Hub
+      - name: Push Docker Image
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker push ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
+
+      # Step 8: Auto Deploy to DEV
+      - name: Deploy to Dev Environment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_DEV_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Deploying to DEV environment..."
+            docker pull ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
+            docker stop react-dev || true
+            docker rm react-dev || true
+            docker run -d -p 80:80 --name react-dev ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
+
+      # Step 9: Manual Approval for TEST
+      - name: Approval for TEST Deployment
+        uses: peter-evans/wait-for-approval@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          approvers: venkatasiva07
+
+      # Step 10: Deploy to TEST
+      - name: Deploy to Test Environment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_TEST_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Deploying to TEST environment..."
+            docker pull ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
+            docker stop react-test || true
+            docker rm react-test || true
+            docker run -d -p 80:80 --name react-test ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
+
+      # Step 11: Manual Approval for PRE-PROD
+      - name: Approval for PREPROD Deployment
+        uses: peter-evans/wait-for-approval@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          approvers: venkatasiva07
+
+      # Step 12: Deploy to PRE-PROD
+      - name: Deploy to Pre-Prod Environment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_PREPROD_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Deploying to PREPROD environment..."
+            docker pull ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
+            docker stop react-preprod || true
+            docker rm react-preprod || true
+            docker run -d -p 80:80 --name react-preprod ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
+
+      # Step 13: Manual Approval for PROD
+      - name: Approval for PROD Deployment
+        uses: peter-evans/wait-for-approval@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          approvers: venkatasiva07
+
+      # Step 14: Deploy to PROD
+      - name: Deploy to Prod Environment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_PROD_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Deploying to PROD environment..."
+            docker pull ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
+            docker stop react-prod || true
+            docker rm react-prod || true
+            docker run -d -p 80:80 --name react-prod ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
