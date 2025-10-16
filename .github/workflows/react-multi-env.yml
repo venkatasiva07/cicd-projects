@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'react-multi-env/**'
+      - 'multi-env-deploy/**'
 
 jobs:
   build-test-deploy:
