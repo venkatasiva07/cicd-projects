@@ -61,12 +61,12 @@ jobs:
             docker rm react-dev || true
             docker run -d -p 80:80 --name react-dev ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
 
-      # Step 9: Manual Approval for TEST
       - name: Approval for TEST Deployment
-        uses: peter-evans/wait-for-approval@v1
+        uses: trstringer/manual-approval@v1
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          approvers: venkatasiva07
+         secret: ${{ secrets.GITHUB_TOKEN }}
+         approvers: venkatasiva07
+
 
       # Step 10: Deploy to TEST
       - name: Deploy to Test Environment
