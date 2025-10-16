@@ -55,18 +55,20 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Deploying to DEV environment..."
+            echo "🚀 Deploying to DEV environment..."
             docker pull ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
             docker stop react-dev || true
             docker rm react-dev || true
             docker run -d -p 80:80 --name react-dev ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
 
+      # Step 9: Manual Approval for TEST
       - name: Approval for TEST Deployment
         uses: trstringer/manual-approval@v1
         with:
-         secret: ${{ secrets.GITHUB_TOKEN }}
-         approvers: venkatasiva07
-
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: venkatasiva07
+          timeout-minutes: 60
+          instructions: "Approve to deploy the build to the TEST environment."
 
       # Step 10: Deploy to TEST
       - name: Deploy to Test Environment
@@ -76,20 +78,22 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Deploying to TEST environment..."
+            echo "🚀 Deploying to TEST environment..."
             docker pull ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
             docker stop react-test || true
             docker rm react-test || true
             docker run -d -p 80:80 --name react-test ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
 
-      # Step 11: Manual Approval for PRE-PROD
+      # Step 11: Manual Approval for PREPROD
       - name: Approval for PREPROD Deployment
-        uses: peter-evans/wait-for-approval@v1
+        uses: trstringer/manual-approval@v1
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          secret: ${{ secrets.GITHUB_TOKEN }}
           approvers: venkatasiva07
+          timeout-minutes: 60
+          instructions: "Approve to deploy the build to the PREPROD environment."
 
-      # Step 12: Deploy to PRE-PROD
+      # Step 12: Deploy to PREPROD
       - name: Deploy to Pre-Prod Environment
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -97,7 +101,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Deploying to PREPROD environment..."
+            echo "🚀 Deploying to PREPROD environment..."
             docker pull ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
             docker stop react-preprod || true
             docker rm react-preprod || true
@@ -105,10 +109,12 @@ jobs:
 
       # Step 13: Manual Approval for PROD
       - name: Approval for PROD Deployment
-        uses: peter-evans/wait-for-approval@v1
+        uses: trstringer/manual-approval@v1
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          secret: ${{ secrets.GITHUB_TOKEN }}
           approvers: venkatasiva07
+          timeout-minutes: 60
+          instructions: "Approve to deploy the build to the PROD environment."
 
       # Step 14: Deploy to PROD
       - name: Deploy to Prod Environment
@@ -118,7 +124,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Deploying to PROD environment..."
+            echo "🚀 Deploying to PROD environment..."
             docker pull ${{ secrets.DOCKER_USERNAME }}/react-multi-env:${{ github.run_number }}
             docker stop react-prod || true
             docker rm react-prod || true
