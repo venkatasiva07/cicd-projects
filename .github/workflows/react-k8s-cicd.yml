@@ -80,7 +80,9 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # correct path: /home/ubuntu/react-k8s/k8s
+            sudo apt-get install dos2unix -y
+            dos2unix /home/ubuntu/react-k8s/k8s/deployment.yaml
+
             sed -i "s|__VERSION__|${GITHUB_RUN_NUMBER}|g" /home/ubuntu/react-k8s/k8s/deployment.yaml
 
             kubectl apply -f /home/ubuntu/react-k8s/k8s/deployment.yaml
