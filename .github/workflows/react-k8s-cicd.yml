@@ -100,5 +100,3 @@ jobs:
 
             kubectl apply -f /home/ubuntu/react-k8s/deployment.yaml
             kubectl apply -f /home/ubuntu/react-k8s/service.yaml
-
-            kubectl get pods -o wide
