@@ -42,7 +42,7 @@ jobs:
         run: npm test -- --watchAll=false
 
       # ---------------------------------------------
-      # 5. Build React
+      # 5. Build React App
       # ---------------------------------------------
       - name: Build React app
         working-directory: react-project
@@ -67,20 +67,7 @@ jobs:
         run: docker push ${{ secrets.DOCKER_USERNAME }}/react-project:${{ github.run_number }}
 
       # ---------------------------------------------
-      # 9. CLEAN & RECREATE TARGET DIRECTORY ON SERVER
-      # ---------------------------------------------
-      - name: Prepare clean k8s directory on server
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.MASTER_NODE_IP }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            rm -rf /home/ubuntu/react-k8s
-            mkdir -p /home/ubuntu/react-k8s
-
-      # ---------------------------------------------
-      # 10. COPY ONLY YAML FILES (FINAL FIX)
+      # 9. Copy YAML files directly to EC2 home directory
       # ---------------------------------------------
       - name: Copy Kubernetes YAML files
         uses: appleboy/scp-action@v0.1.7
@@ -89,26 +76,26 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "./k8s/*.yaml"
-          target: "/home/ubuntu/react-k8s/"
+          target: "/home/ubuntu/"
           overwrite: true
 
       # ---------------------------------------------
-      # 11. DEBUG — CHECK FILES ON SERVER
+      # 10. Debug — verify YAML files exist on EC2
       # ---------------------------------------------
-      - name: Debug copied files on server
+      - name:  list files on EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.MASTER_NODE_IP }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Files in /home/ubuntu/react-k8s:"
-            ls -la /home/ubuntu/react-k8s
+            echo "Files present in /home/ubuntu/:"
+            ls -la /home/ubuntu/
 
       # ---------------------------------------------
-      # 12. DEPLOY TO K8S
+      # 11. Apply Kubernetes Deployment
       # ---------------------------------------------
-      - name: Deploy to Kubernetes
+      - name: Deploy to Kubernetes cluster
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.MASTER_NODE_IP }}
@@ -118,15 +105,15 @@ jobs:
             sudo apt-get update -y
             sudo apt-get install dos2unix -y
 
-            # Convert CRLF to LF
-            dos2unix /home/ubuntu/react-k8s/deployment.yaml
+            # Ensure YAML format is correct
+            dos2unix /home/ubuntu/deployment.yaml
 
-            # Replace version placeholder
-            sed -i "s|__VERSION__|${GITHUB_RUN_NUMBER}|g" /home/ubuntu/react-k8s/deployment.yaml
+            # Replace version placeholder with run number
+            sed -i "s|__VERSION__|${GITHUB_RUN_NUMBER}|g" /home/ubuntu/deployment.yaml
 
             # Apply manifests
-            kubectl apply -f /home/ubuntu/react-k8s/deployment.yaml
-            kubectl apply -f /home/ubuntu/react-k8s/service.yaml
+            kubectl apply -f /home/ubuntu/deployment.yaml
+            kubectl apply -f /home/ubuntu/service.yaml
 
             # Show running pods
             kubectl get pods -o wide
