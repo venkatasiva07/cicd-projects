@@ -3,7 +3,7 @@ function App() {
     <div>
       <h1>Hello, React CI/CD!</h1>
       <h2> i am tying to test the cicd using github actions</h2>
-      <h3> now i deploying into k8s and k8s was set uped in root user</h3>
+      <h3> now i deploying into k8s with ubuntu user </h3>
     </div>
   );
 }
