@@ -80,9 +80,10 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sed -i "s|__VERSION__|${GITHUB_RUN_NUMBER}|g" /home/ubuntu/react-k8s/deployment.yaml
+            # correct path: /home/ubuntu/react-k8s/k8s
+            sed -i "s|__VERSION__|${GITHUB_RUN_NUMBER}|g" /home/ubuntu/react-k8s/k8s/deployment.yaml
 
-            kubectl apply -f /home/ubuntu/react-k8s/deployment.yaml
-            kubectl apply -f /home/ubuntu/react-k8s/service.yaml
+            kubectl apply -f /home/ubuntu/react-k8s/k8s/deployment.yaml
+            kubectl apply -f /home/ubuntu/react-k8s/k8s/service.yaml
 
             kubectl get pods -o wide
