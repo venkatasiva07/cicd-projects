@@ -53,15 +53,15 @@ jobs:
             rm -rf /home/ubuntu/react-k8s
             mkdir -p /home/ubuntu/react-k8s
 
-      # FIXED: Copy only YAML files
       - name: Copy Kubernetes YAML files
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.MASTER_NODE_IP }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "k8s/*.yaml"
+          source: "k8s/deployment.yaml,k8s/service.yaml"
           target: "/home/ubuntu/react-k8s/"
+          overwrite: true
 
       - name: Debug copied files
         uses: appleboy/ssh-action@v1.0.0
