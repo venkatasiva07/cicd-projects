@@ -3,7 +3,7 @@ name: React App CI/CD with Tests and EC2 Deployment
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - 'react-project/**'
 
