@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
+      # 1. Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -23,22 +23,22 @@ jobs:
         with:
           node-version: '18'
 
-      # 3. Install Dependencies
+      # 3. Install dependencies
       - name: Install dependencies
         working-directory: react-project
         run: npm ci
 
-      # 4. Run Tests
+      # 4. Run tests
       - name: Run tests
         working-directory: react-project
         run: npm test -- --watchAll=false
 
-      # 5. Build React App
+      # 5. Build React app
       - name: Build React app
         working-directory: react-project
         run: npm run build
 
-      # 6. Build Docker Image
+      # 6. Build Docker image
       - name: Build Docker image
         run: docker build -t ${{ secrets.DOCKER_USERNAME }}/react-project:${{ github.run_number }} ./react-project
 
@@ -46,12 +46,12 @@ jobs:
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # 8. Push Docker Image
+      # 8. Push Docker image
       - name: Push Docker image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/react-project:${{ github.run_number }}
 
-      # 9. Create target directory for K8s YAML files
-      - name: Create target directory on Kubernetes master
+      # 9. Create directory for Kubernetes files on server
+      - name: Create directory on master node
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.MASTER_NODE_IP }}
@@ -59,18 +59,30 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             mkdir -p /home/ubuntu/react-k8s
+            chmod 755 /home/ubuntu/react-k8s
 
-      # 10. Copy K8s YAML files
+      # 10. Copy Kubernetes YAML files to master node
       - name: Copy Kubernetes YAML files
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.MASTER_NODE_IP }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "k8s/*"
+          source: "k8s/*.yaml"
           target: "/home/ubuntu/react-k8s/"
 
-      # 11. Deploy to Kubernetes
+      # 11. Debug copied files
+      - name: Debug copied files
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.MASTER_NODE_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Listing /home/ubuntu/react-k8s"
+            ls -la /home/ubuntu/react-k8s
+
+      # 12. Deploy to Kubernetes
       - name: Deploy to Kubernetes
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -78,12 +90,12 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Updating deployment with new image version..."
+            echo "Replacing image version..."
             sed -i "s|__VERSION__|${GITHUB_RUN_NUMBER}|g" /home/ubuntu/react-k8s/deployment.yaml
 
-            echo "Applying manifests to Kubernetes..."
+            echo "Applying manifests..."
             kubectl apply -f /home/ubuntu/react-k8s/deployment.yaml
             kubectl apply -f /home/ubuntu/react-k8s/service.yaml
 
-            echo "Deployment applied successfully!"
+            echo "Deployment Successful!"
             kubectl get pods -o wide
