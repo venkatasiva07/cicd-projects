@@ -5,96 +5,105 @@ on:
     branches:
       - main
     paths:
-      - 'react-project/**'
-      - 'k8s/**'
+      - "react-project/**"
+      - "k8s/**"
 
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # ---------------------------------------------
-      # 1. Checkout source code
-      # ---------------------------------------------
+      # -----------------------------------------------------
+      # 1. Checkout code
+      # -----------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # ---------------------------------------------
+      # -----------------------------------------------------
       # 2. Setup Node.js
-      # ---------------------------------------------
+      # -----------------------------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: "18"
 
-      # ---------------------------------------------
-      # 3. Install dependencies
-      # ---------------------------------------------
+      # -----------------------------------------------------
+      # 3. Install NPM dependencies
+      # -----------------------------------------------------
       - name: Install dependencies
         working-directory: react-project
         run: npm ci
 
-      # ---------------------------------------------
-      # 4. Run Tests
-      # ---------------------------------------------
+      # -----------------------------------------------------
+      # 4. Run tests
+      # -----------------------------------------------------
       - name: Run tests
         working-directory: react-project
         run: npm test -- --watchAll=false
 
-      # ---------------------------------------------
+      # -----------------------------------------------------
       # 5. Build React App
-      # ---------------------------------------------
+      # -----------------------------------------------------
       - name: Build React app
         working-directory: react-project
         run: npm run build
 
-      # ---------------------------------------------
+      # -----------------------------------------------------
       # 6. Build Docker Image
-      # ---------------------------------------------
+      # -----------------------------------------------------
       - name: Build Docker image
         run: docker build -t ${{ secrets.DOCKER_USERNAME }}/react-project:${{ github.run_number }} ./react-project
 
-      # ---------------------------------------------
+      # -----------------------------------------------------
       # 7. Login to DockerHub
-      # ---------------------------------------------
+      # -----------------------------------------------------
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # ---------------------------------------------
+      # -----------------------------------------------------
       # 8. Push Docker Image
-      # ---------------------------------------------
+      # -----------------------------------------------------
       - name: Push Docker image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/react-project:${{ github.run_number }}
 
-      # ---------------------------------------------
-      # 9. Copy YAML files directly to EC2 home directory
-      # ---------------------------------------------
-      - name: Copy Kubernetes YAML files
+      # -----------------------------------------------------
+      # 9. Copy entire k8s folder to EC2
+      # (This avoids glob & pattern issues)
+      # -----------------------------------------------------
+      - name: Copy Kubernetes folder
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.MASTER_NODE_IP }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "./k8s/*.yaml"
+          source: "./k8s"
           target: "/home/ubuntu/"
           overwrite: true
 
-      # ---------------------------------------------
-      # 10. Debug — verify YAML files exist on EC2
-      # ---------------------------------------------
-      - name:  list files on EC2
+      # -----------------------------------------------------
+      # 10. Move YAML files to correct location
+      # -----------------------------------------------------
+      - name: Prepare YAML files
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.MASTER_NODE_IP }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Files present in /home/ubuntu/:"
+            echo "Before move:"
+            ls -la /home/ubuntu/k8s
+
+            mv /home/ubuntu/k8s/deployment.yaml /home/ubuntu/deployment.yaml
+            mv /home/ubuntu/k8s/service.yaml /home/ubuntu/service.yaml
+
+            rm -rf /home/ubuntu/k8s
+
+            echo "After move:"
             ls -la /home/ubuntu/
 
-      # ---------------------------------------------
-      # 11. Apply Kubernetes Deployment
-      # ---------------------------------------------
+      # -----------------------------------------------------
+      # 11. Deploy to Kubernetes
+      # -----------------------------------------------------
       - name: Deploy to Kubernetes cluster
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -105,15 +114,12 @@ jobs:
             sudo apt-get update -y
             sudo apt-get install dos2unix -y
 
-            # Ensure YAML format is correct
             dos2unix /home/ubuntu/deployment.yaml
 
-            # Replace version placeholder with run number
             sed -i "s|__VERSION__|${GITHUB_RUN_NUMBER}|g" /home/ubuntu/deployment.yaml
 
-            # Apply manifests
             kubectl apply -f /home/ubuntu/deployment.yaml
             kubectl apply -f /home/ubuntu/service.yaml
 
-            # Show running pods
+            echo "Pods after deployment:"
             kubectl get pods -o wide
