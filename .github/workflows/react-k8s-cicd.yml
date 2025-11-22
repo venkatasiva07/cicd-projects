@@ -13,44 +13,62 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
+      # ---------------------------------------------
+      # 1. Checkout source code
+      # ---------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Setup Node.js
+      # ---------------------------------------------
+      # 2. Setup Node.js
+      # ---------------------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # Install dependencies
+      # ---------------------------------------------
+      # 3. Install dependencies
+      # ---------------------------------------------
       - name: Install dependencies
         working-directory: react-project
         run: npm ci
 
-      # Run tests
+      # ---------------------------------------------
+      # 4. Run Tests
+      # ---------------------------------------------
       - name: Run tests
         working-directory: react-project
         run: npm test -- --watchAll=false
 
-      # Build React app
+      # ---------------------------------------------
+      # 5. Build React
+      # ---------------------------------------------
       - name: Build React app
         working-directory: react-project
         run: npm run build
 
-      # Build Docker image
+      # ---------------------------------------------
+      # 6. Build Docker Image
+      # ---------------------------------------------
       - name: Build Docker image
         run: docker build -t ${{ secrets.DOCKER_USERNAME }}/react-project:${{ github.run_number }} ./react-project
 
-      # Login to Docker Hub
+      # ---------------------------------------------
+      # 7. Login to DockerHub
+      # ---------------------------------------------
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # Push Docker image
+      # ---------------------------------------------
+      # 8. Push Docker Image
+      # ---------------------------------------------
       - name: Push Docker image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/react-project:${{ github.run_number }}
 
-      # Clean & recreate directory on master node (NO MANUAL WORK EVER)
+      # ---------------------------------------------
+      # 9. CLEAN & RECREATE TARGET DIRECTORY ON SERVER
+      # ---------------------------------------------
       - name: Prepare clean k8s directory on server
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -61,19 +79,23 @@ jobs:
             rm -rf /home/ubuntu/react-k8s
             mkdir -p /home/ubuntu/react-k8s
 
-      # Copy ONLY YAML files (no folders, no corruption)
+      # ---------------------------------------------
+      # 10. COPY ONLY YAML FILES (FINAL FIX)
+      # ---------------------------------------------
       - name: Copy Kubernetes YAML files
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.MASTER_NODE_IP }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "k8s/deployment.yaml,k8s/service.yaml"
+          source: "./k8s/*.yaml"
           target: "/home/ubuntu/react-k8s/"
           overwrite: true
 
-      # Debug directory contents
-      - name: Debug copied files
+      # ---------------------------------------------
+      # 11. DEBUG — CHECK FILES ON SERVER
+      # ---------------------------------------------
+      - name: Debug copied files on server
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.MASTER_NODE_IP }}
@@ -83,7 +105,9 @@ jobs:
             echo "Files in /home/ubuntu/react-k8s:"
             ls -la /home/ubuntu/react-k8s
 
-      # Deploy to Kubernetes
+      # ---------------------------------------------
+      # 12. DEPLOY TO K8S
+      # ---------------------------------------------
       - name: Deploy to Kubernetes
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -93,10 +117,16 @@ jobs:
           script: |
             sudo apt-get update -y
             sudo apt-get install dos2unix -y
-            
+
+            # Convert CRLF to LF
             dos2unix /home/ubuntu/react-k8s/deployment.yaml
 
+            # Replace version placeholder
             sed -i "s|__VERSION__|${GITHUB_RUN_NUMBER}|g" /home/ubuntu/react-k8s/deployment.yaml
 
+            # Apply manifests
             kubectl apply -f /home/ubuntu/react-k8s/deployment.yaml
             kubectl apply -f /home/ubuntu/react-k8s/service.yaml
+
+            # Show running pods
+            kubectl get pods -o wide
